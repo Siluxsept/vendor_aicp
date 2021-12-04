@@ -63,6 +63,14 @@
 #                                          modules in system instead of vendor
 #   NEED_KERNEL_MODULE_VENDOR_OVERLAY  = Optional, if true, install kernel
 #                                          modules in vendor_overlay instead of vendor
+#
+#   TARGET_DTBO_IMAGE_NAME             = Device Tree Binary Overlay (DTBO) image name
+#                                          Should be 'dtbo' for most devices
+#                                          Some MediaTek devices use 'odmdtbo'
+#   TARGET_DTBO_IMAGE_TARGET           = Similar to TARGET_DTBO_IMAGE_NAME, but the full file name
+#                                          Should be 'dtbo.img' for most devices
+#                                          Some MediaTek devices use 'odmdtboimage'
+#   TARGET_DTBO_IMAGE_PATH             = Path to generated DTBO image in inline kernel build tree
 
 ifneq ($(TARGET_NO_KERNEL),true)
 ifneq ($(TARGET_NO_KERNEL_OVERRIDE),true)
@@ -112,6 +120,10 @@ ifeq ($(TARGET_PREBUILT_KERNEL),)
     endif
 endif
 TARGET_PREBUILT_INT_KERNEL := $(KERNEL_OUT)/arch/$(KERNEL_ARCH)/boot/$(BOARD_KERNEL_IMAGE_NAME)
+
+TARGET_DTBO_IMAGE_NAME ?= dtbo
+TARGET_DTBO_IMAGE_TARGET ?= dtbo.img
+TARGET_DTBO_IMAGE_PATH ?= dtbo/arch/$(KERNEL_ARCH)/boot/$(TARGET_DTBO_IMAGE_NAME).img
 
 TARGET_PREBUILT_INT_RECOVERY_KERNEL := $(RECOVERY_KERNEL_OUT)/arch/$(KERNEL_ARCH)/boot/$(BOARD_KERNEL_IMAGE_NAME)
 
@@ -424,7 +436,7 @@ MKDTBOIMG := $(HOST_OUT_EXECUTABLES)/mkdtboimg.py$(HOST_EXECUTABLE_SUFFIX)
 $(BOARD_PREBUILT_DTBOIMAGE): $(DTC) $(MKDTIMG) $(MKDTBOIMG)
 ifeq ($(BOARD_KERNEL_SEPARATED_DTBO),true)
 $(BOARD_PREBUILT_DTBOIMAGE):
-	@echo "Building dtbo.img"
+	@echo "Building $(TARGET_DTBO_IMAGE_NAME).img"
 	$(call make-dtbo-target,$(KERNEL_DEFCONFIG))
 	$(call make-dtbo-target,dtbs)
 ifdef BOARD_DTBO_CFG
@@ -433,10 +445,11 @@ else
 	$(MKDTBOIMG) create $@ --page_size=$(BOARD_KERNEL_PAGESIZE) $(shell find $(DTBO_OUT)/arch/$(KERNEL_ARCH)/boot/dts -type f -name "*.dtbo" | sort)
 endif
 else
+# BOARD_PREBUILT_DTBOIMAGE = $(DTBO_OUT)/arch/$(TARGET_KERNEL_ARCH)/boot/dts/$(TARGET_DTBO_IMAGE_NAME).img
 $(BOARD_PREBUILT_DTBOIMAGE):
-	@echo "Building dtbo.img"
+	@echo "Building $(TARGET_DTBO_IMAGE_NAME).img"
 	$(call make-dtbo-target,$(KERNEL_DEFCONFIG))
-	$(call make-dtbo-target,dtbo.img)
+	$(call make-dtbo-target,$(TARGET_DTBO_IMAGE_TARGET))
 endif # BOARD_KERNEL_SEPARATED_DTBO
 endif # BOARD_CUSTOM_DTBOIMG_MK
 endif # TARGET_NEEDS_DTBOIMAGE/BOARD_KERNEL_SEPARATED_DTBO
@@ -489,6 +502,8 @@ $(file) : $(RECOVERY_BIN) | $(ACP)
 ALL_PREBUILT += $(INSTALLED_RECOVERY_KERNEL)
 endif
 
+BOARD_PREBUILT_DTBOIMAGE = $(DTBO_OUT)/arch/$(TARGET_KERNEL_ARCH)/boot/dts/$(TARGET_DTBO_IMAGE_NAME).img
+
 .PHONY: recovery-kernel
 recovery-kernel: $(INSTALLED_RECOVERY_KERNEL)
 
@@ -497,6 +512,9 @@ kernel: $(INSTALLED_KERNEL_TARGET)
 
 .PHONY: dtboimage
 dtboimage: $(INSTALLED_DTBOIMAGE_TARGET)
+
+.PHONY: odmdtboimage
+odmdtboimage: $(INSTALLED_DTBOIMAGE_TARGET)
 
 .PHONY: dtbimage
 dtbimage: $(INSTALLED_DTBIMAGE_TARGET)
